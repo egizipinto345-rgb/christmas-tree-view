@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <link rel="icon" href="data:,">
+  <title>Merry Christmas · 圣诞树</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      background: #100b0a;
+      color: #efdcb4;
+      font: 1rem/1.7 system-ui, sans-serif;
+    }
+    main { padding: 2rem; }
+    h1 { margin: 0; font: italic 2.2rem Georgia, serif; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Merry Christmas</h1>
+    <p id="status" role="status">正在点亮圣诞树…</p>
+  </main>
+  <script>
+    const statusText = document.getElementById('status');
+    const invitation = location.hash.slice(1);
+
+    async function openGift() {
+      const keyBytes = Uint8Array.from(
+        atob(invitation.replaceAll('-', '+').replaceAll('_', '/') + '='),
+        character => character.charCodeAt(0)
+      );
+      const key = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['decrypt']);
+      const response = await fetch('gift.bin');
+      if (!response.ok) throw new Error('Gift download failed');
+      const payload = await response.arrayBuffer();
+      const plaintext = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: payload.slice(0, 12) }, key, payload.slice(12)
+      );
+      const html = new TextDecoder('utf-8', { fatal: true }).decode(plaintext);
+      document.open();
+      document.write(html);
+      document.close();
+    }
+
+    if (!/^[A-Za-z0-9_-]{43}$/.test(invitation)) {
+      statusText.textContent = '请用收到的完整链接打开圣诞树。';
+    } else if (!window.crypto?.subtle) {
+      statusText.textContent = '请用 Edge、Chrome、Safari 或 Firefox 打开这个链接。';
+    } else {
+      window.addEventListener('load', () => {
+        openGift().catch(() => {
+          statusText.textContent = '圣诞树暂时打不开，请检查链接是否完整，再刷新试试。';
+        });
+      }, { once: true });
+    }
+  </script>
+</body>
+</html>
